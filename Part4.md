@@ -34,3 +34,60 @@
 - 出于这个原因，即使我知道上述我列出来所有资源中的好的意见，我也会考虑我将尽可能的复制现有库的API，我创建这样的API的优势是因为这将使用户更容易的使用它们。
     
 ####2. 为FelixDB公共API定义功能
+
+- 既然这是实现一个最小的切稳定的kv数据库的第一步，我肯定不会提供成熟项目如Kyoto Cabinet和LevelDB中所有先进的功能。我想先加入基本功能，然后逐渐增加其他功能。对我来说，基本功能就限制在这些：
+
+    - 打开关闭数据库
+    - 数据库中读写
+    - 遍历一个数据库中的所有的kv集合
+    - 提供一种方法来调整参数
+    - 提供一个易懂的错误通知接口
+    
+- 我知道这些功能的用例很有限，但是对现在来说这足够了。我决定不包含任何的事物处理机制，分组查询，和原子操作。此外，我现在还不会提供快找功能。
+
+####3. 比较现有数据库的API
+
+- 为了比较现有数据库的C++API，我将抽取每个功能的代码来做比较。这些样本代码有的是自己所想，有的是直接取自官方文档：
+    
+    - Kyoto Cabinet的基本说明
+    - LevelDB的详细文档
+    - Berkeley DB入门
+    - 在五分钟之内学会SQLite
+    
+- 我也使用了代码配色，以便于区分各种API代码。
+
+    **3.1 打开关闭数据库**
+    
+    下面是代码示例演示如何打开正在探究的系统数据库。为了代码简洁，设置和错误管理此处没有展示，并在下面相应的章节中更详细进行说明。
+    
+    ```cpp
+    /* LevelDB */
+    leveldb::DB* db;
+    leveldb::DB::Open(leveldb::Options, "/tmp/testdb", &db);
+    ...
+    delete db;
+    ```
+    
+    ```cpp
+    /* Kyoto Cabinet */
+    HashDB db;
+    db.open("dbfile.kch", HashDB::OWRITER | HashDB::OCREATE);
+    ...
+    db.close()
+    ```
+    
+    ```cpp
+    /* SQLite3 */
+    sqlite3 *db;
+    sqlite3_open("askyb.db", &db);
+    ...
+    sqlite3_close(db);
+    ```
+    
+    ```cpp
+    /* Berkeley DB */
+    Db db(NULL, 0);
+    db.open(NULL, "my_db.db", NULL, DB_BTREE, DB_CREATE, 0);
+    ...
+    db.close(0);
+    ```

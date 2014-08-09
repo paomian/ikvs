@@ -33,7 +33,7 @@
 
 ####3.8 数据存储
 
-1. Kyoto Cabinet, LevelDB, BerkeleyDB, MongoDB,Redis都是使用文件系统来存储数据，与此相反，Memcached是在内存中的存储数据。详细的数据存储介绍将在的IKVS系列的后续文章中。
+- Kyoto Cabinet, LevelDB, BerkeleyDB, MongoDB,Redis都是使用文件系统来存储数据，与此相反，Memcached是在内存中的存储数据。详细的数据存储介绍将在的IKVS系列的后续文章中。
 
 ###四、代码审查
 - This section is a quick code review of Kyoto Cabinet and LevelDB. It is not thorough, and only contains elements that I judged remarkable when I was reading the source code.
