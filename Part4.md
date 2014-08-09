@@ -19,7 +19,7 @@
 4. 结论
 5. 参考文献
 
-####1. API设计的一般原则
+###1. API设计的一般原则
 
 - 设计一个好的API是困难的，真的困难，但我不是要说什么的新的东西，只是复述我以前已经讲过的很多东西。迄今为止，我发现最佳的关于API设计的资源是Jonshua Bloch的格言式的报告“如何设计好的API和他为什么那么重要”。如果你还没有机会看这次报告，我强烈建议你花时间把他看完，在报告过程中，Bloch明确指出听众应该记得的两个重要的事情，我抄了报告的这些点，并增加了一些观点。  
 
@@ -33,7 +33,7 @@
 
 - 出于这个原因，即使我知道上述我列出来所有资源中的好的意见，我也会考虑我将尽可能的复制现有库的API，我创建这样的API的优势是因为这将使用户更容易的使用它们。
     
-####2. 为FelixDB公共API定义功能
+###2. 为FelixDB公共API定义功能
 
 - 既然这是实现一个最小的切稳定的kv数据库的第一步，我肯定不会提供成熟项目如Kyoto Cabinet和LevelDB中所有先进的功能。我想先加入基本功能，然后逐渐增加其他功能。对我来说，基本功能就限制在这些：
 
@@ -45,7 +45,7 @@
     
 - 我知道这些功能的用例很有限，但是对现在来说这足够了。我决定不包含任何的事物处理机制，分组查询，和原子操作。此外，我现在还不会提供快找功能。
 
-####3. 比较现有数据库的API
+###3. 比较现有数据库的API
 
 - 为了比较现有数据库的C++API，我将抽取每个功能的代码来做比较。这些样本代码有的是自己所想，有的是直接取自官方文档：
     
@@ -56,7 +56,7 @@
     
 - 我也使用了代码配色，以便于区分各种API代码。
 
-    **3.1 打开关闭数据库**
+    ####3.1 打开关闭数据库
     
     1. 下面是代码示例演示如何打开正在探究的系统数据库。为了代码简洁，设置和错误管理此处没有展示，并在下面相应的章节中更详细进行说明。
     
@@ -98,4 +98,63 @@
     
     4. 我想想，LevelDB和SQLite3强制使用一个数据库对象指针，然后传递给一个数据库开启函数是非常C风格的设计。此外，我认为，LevelDB用对指针的`delete`操作来处理数据库关闭是一个设计上的缺陷，因为这破坏了对称性。在API中，函数调用应该尽可能的对称，因为这更直观更合乎逻辑，如果我调用了`call()`,然后我应该调用`close()`比我调用了`open()`，然后我在`delete`指针要好的多并且更符合逻辑。
     
-    **设计决定**
+**设计决定**
+    
+- 所以，我将在FelixDB中使用他，我想使用类似Kyoto Cabinet和BerkeleyDB那样直接实例化一个数据库对象，然后调用`open()`和`close()`方法，至于命名，我会坚持传统的`open()`和`close()`。
+    
+    ####3.2 读和写
+    
+    在本节中，我比较的API中读/写功能的优劣。
+
+    ```cpp
+    /* LevelDB */
+    std::string value;
+    db->Get(leveldb::ReadOptions(), "key1", &value);
+    db->Put(leveldb::WriteOptions(), "key2", value);
+    ```
+    
+    ```cpp
+    /* Kyoto Cabinet */
+    string value;
+    db.get("key1", &value);
+    db.set("key2", "value");
+    ```
+    
+    ```cpp
+    /* SQLite3 */
+    int szErrMsg;
+    char *query = “INSERT INTO table col1, col2 VALUES (‘value1’, ‘value2’)”;
+    sqlite3_exec(db, query, NULL, 0, &szErrMsg);
+    ```
+    
+    ```cpp
+    /* Berkeley DB */
+    /* reading */
+    Dbt key, data;
+
+    key.set_data(&money);
+    key.set_size(sizeof(float));
+
+    data.set_data(description);
+    data.set_ulen(DESCRIPTION_SIZE + 1);
+    data.set_flags(DB_DBT_USERMEM);
+
+    db.get(NULL, &key, &data, 0);
+
+    /* writing */
+    char *description = "Grocery bill.";
+    float money = 122.45;
+
+    Dbt key(&money, sizeof(float));
+    Dbt data(description, strlen(description) + 1);
+
+    db.put(NULL, &key, &data, DB_NOOVERWRITE);
+
+    int const DESCRIPTION_SIZE = 199;
+    float money = 122.45;
+    char description[DESCRIPTION_SIZE + 1];
+    ```
+
+    1. 在这里我不会去考虑SQLite3，因为他是基于SQL，因此他的读和写都是通过SQL语句，而不是方法调用。Berkeley DB的需要创建DBT对象，并要设置很多选项，所以我也不会去考虑他。
+    
+    2. 留给我们的还有LevelDB和Kyoto Cabinet，他们有额和你好的`getter/setter`对称的接口，LevelDB有`Get()`和`Put()`，Kyoto Cabinet有`get()`和`set()`。`Put()`和`set()`方法的运行非常相似，key是值传递的，该值是通过作为指针来传递，因此他可以通过调用来更新，这里该值不会在调用时被返回，返回值只是为了错误管理。
