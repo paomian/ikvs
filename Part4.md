@@ -23,7 +23,7 @@
 
 - 设计一个好的API是困难的，真的困难，但我不是要说什么的新的东西，只是复述我以前已经讲过的很多东西。迄今为止，我发现最佳的关于API设计的资源是Jonshua Bloch的格言式的报告“如何设计好的API和他为什么那么重要”。如果你还没有机会看这次报告，我强烈建议你花时间把他看完，在报告过程中，Bloch明确指出听众应该记得的两个重要的事情，我抄了报告的这些点，并增加了一些观点。  
 
-    1. 如果有疑问，抛弃他，如果不确定API中是否要包含一个功能，类，方法，参数，就不要包含他。
+    1. 如果有疑问，抛弃他，如果不确定API中是否要包含一个功能，类，方法，参数，就不要包含他。  
     2. 不要让客户端做任何库可以做的事，如果你的API让客户端执行了一系列上一个函数调用和插件的结果是下一个的输入，只需要在你的API中添加一个函数来做一系列的函数调用。  
 
 
@@ -154,7 +154,58 @@
     float money = 122.45;
     char description[DESCRIPTION_SIZE + 1];
     ```
-
     1. 在这里我不会去考虑SQLite3，因为他是基于SQL，因此他的读和写都是通过SQL语句，而不是方法调用。Berkeley DB的需要创建DBT对象，并要设置很多选项，所以我也不会去考虑他。
     
     2. 留给我们的还有LevelDB和Kyoto Cabinet，他们有额和你好的`getter/setter`对称的接口，LevelDB有`Get()`和`Put()`，Kyoto Cabinet有`get()`和`set()`。`Put()`和`set()`方法的运行非常相似，key是值传递的，该值是通过作为指针来传递，因此他可以通过调用来更新，这里该值不会在调用时被返回，返回值只是为了错误管理。
+    
+    
+**为FelixDB决定设计方向**
+
+- 我将设计使用一个`setter`，原型类似LevelDB和Kyoto Cabinet的，也就是说，对setter方法，key用传值，value传指针，指针的内容随后再填充。关于命名，我最先想到的是`Get()`和`Set()`应该是最好的选择，后来想了想，我倾向了LevelDB的`get()`和`put()`，原因是`GET()`和`SET()`只有一个字母不一样，`GET()`和`PUT()`更容易区分，所以我将使用`GET/SET`
+
+    ####3.3 迭代器
+    
+    ```cpp
+    /* LevelDB */
+    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    cout << it->key().ToString() << ": "  << it->value().ToString() << endl;
+    }
+    delete it;
+    ```
+    
+    ```cpp
+    /* Kyoto Cabinet */
+    DB::Cursor* cur = db.cursor();
+    cur->jump();
+    string ckey, cvalue;
+    while (cur->get(&ckey, &cvalue, true)) {
+    cout << ckey << ":" << cvalue << endl;
+    }
+    delete cur;
+    ```
+    
+    ```cpp
+    /* SQLite3 */
+    static int callback(void *NotUsed, int argc, char **argv, char **szColName) {
+        for(int i = 0; i < argc; i++) {
+            printf("%s = %s\n", szColName[i], argv[i] ? argv[i] : "NULL");
+        }
+    printf("\n");
+    return 0;
+    }
+
+    char *query = “SELECT * FROM table”;
+    sqlite3_exec(db, query, callback, 0, &szErrMsg);
+    ```
+    
+    ```cpp
+    /* Berkeley DB */
+    Dbc *cursorp;
+    db.cursor(NULL, &cursorp, 0);
+    Dbt key, data;
+    while (cursorp->get(&key, &data, DB_NEXT) == 0) {
+    // do things
+    }
+    cursorp->close();
+    ```
